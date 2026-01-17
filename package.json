@@ -1,0 +1,71 @@
+{
+  "name": "vuedefer",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Vue lazy render component with viewport-based mounting and update freezing.",
+  "author": {
+    "name": "yangpanteng",
+    "email": "yangpanteng@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "vue",
+    "vue3",
+    "lazy-render",
+    "lazy-load",
+    "intersection-observer",
+    "performance",
+    "deferred-render",
+    "viewport"
+  ],
+  "homepage": "https://github.com/Alfred-Skyblue/vuedefer#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alfred-Skyblue/vuedefer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Alfred-Skyblue/vuedefer/issues"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "play": "vite",
+    "test": "vitest",
+    "typecheck": "vue-tsc --noEmit",
+    "release": "bumpp && pnpm publish",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "@vitest/browser-playwright": "^4.0.16",
+    "bumpp": "^10.3.2",
+    "playwright": "^1.57.0",
+    "tsdown": "^0.18.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^4.0.16",
+    "vitest-browser-vue": "^2.0.1",
+    "vue": "^3.5.25",
+    "vue-tsc": "^3.1.8",
+    "@antfu/eslint-config": "^7.0.1",
+    "eslint": "^9.39.2",
+    "eslint-plugin-format": "^1.3.1"
+  }
+}
