@@ -1,7 +1,7 @@
 {
   "name": "vuedefer",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Vue lazy render component with viewport-based mounting and update freezing.",
   "author": {
     "name": "yangpanteng",
