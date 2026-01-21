@@ -7,25 +7,28 @@ describe('useIntersectionObserver', () => {
   let mockUnobserve: ReturnType<typeof vi.fn>
   let mockDisconnect: ReturnType<typeof vi.fn>
   let intersectionCallback: IntersectionObserverCallback
+  let originalIntersectionObserver: typeof IntersectionObserver
 
   beforeEach(() => {
     mockObserve = vi.fn()
     mockUnobserve = vi.fn()
     mockDisconnect = vi.fn()
 
+    // Save original IntersectionObserver
+    originalIntersectionObserver = window.IntersectionObserver
+
     // Mock IntersectionObserver as a class
-    const MockIntersectionObserver = vi.fn(function (this: any, callback: IntersectionObserverCallback) {
+    window.IntersectionObserver = vi.fn(function (this: any, callback: IntersectionObserverCallback) {
       intersectionCallback = callback
       this.observe = mockObserve
       this.unobserve = mockUnobserve
       this.disconnect = mockDisconnect
-    })
-
-    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver)
+    }) as any
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    // Restore original IntersectionObserver
+    window.IntersectionObserver = originalIntersectionObserver
   })
 
   it('should initialize with isVisible as false', () => {
@@ -93,7 +96,7 @@ describe('useIntersectionObserver', () => {
 
     useIntersectionObserver(target, options)
 
-    expect(IntersectionObserver).toHaveBeenCalledWith(expect.any(Function), options)
+    expect(window.IntersectionObserver).toHaveBeenCalledWith(expect.any(Function), options)
   })
 
   it('should unobserve element when target changes', async () => {

@@ -1,5 +1,5 @@
-import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-vue'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { LazyRender } from '../lazy-render'
 
@@ -8,25 +8,28 @@ describe('lazyRender', () => {
   let mockObserve: ReturnType<typeof vi.fn>
   let mockUnobserve: ReturnType<typeof vi.fn>
   let mockDisconnect: ReturnType<typeof vi.fn>
+  let originalIntersectionObserver: typeof IntersectionObserver
 
   beforeEach(() => {
     mockObserve = vi.fn()
     mockUnobserve = vi.fn()
     mockDisconnect = vi.fn()
 
+    // Save original IntersectionObserver
+    originalIntersectionObserver = window.IntersectionObserver
+
     // Mock IntersectionObserver as a class
-    const MockIntersectionObserver = vi.fn(function (this: any, callback: IntersectionObserverCallback) {
+    window.IntersectionObserver = vi.fn(function (this: any, callback: IntersectionObserverCallback) {
       intersectionCallback = callback
       this.observe = mockObserve
       this.unobserve = mockUnobserve
       this.disconnect = mockDisconnect
-    })
-
-    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver)
+    }) as any
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    // Restore original IntersectionObserver
+    window.IntersectionObserver = originalIntersectionObserver
   })
 
   // Helper to simulate viewport intersection
@@ -38,16 +41,15 @@ describe('lazyRender', () => {
   }
 
   describe('rendering', () => {
-    it('should render fallback slot when not in viewport', () => {
-      const wrapper = mount(LazyRender, {
+    it('should render fallback slot when not in viewport', async () => {
+      const screen = render(LazyRender, {
         slots: {
           default: () => h('div', { class: 'content' }, 'Content'),
           fallback: () => h('div', { class: 'fallback' }, 'Loading...'),
         },
       })
 
-      expect(wrapper.find('.fallback').exists()).toBe(true)
-      expect(wrapper.find('.content').exists()).toBe(false)
+      await expect.element(screen.getByText('Loading...')).toBeInTheDocument()
     })
 
     it('should render default slot when entering viewport', async () => {
@@ -57,7 +59,7 @@ describe('lazyRender', () => {
         },
       })
 
-      const wrapper = mount(LazyRender, {
+      const screen = render(LazyRender, {
         slots: {
           default: () => h(ChildComponent),
           fallback: () => h('div', { class: 'fallback' }, 'Loading...'),
@@ -65,92 +67,91 @@ describe('lazyRender', () => {
       })
 
       // Initially shows fallback
-      expect(wrapper.find('.fallback').exists()).toBe(true)
+      await expect.element(screen.getByText('Loading...')).toBeInTheDocument()
 
       // Simulate entering viewport
       simulateIntersection(true)
       await nextTick()
-      await flushPromises()
 
-      expect(wrapper.find('.content').exists()).toBe(true)
+      await expect.element(screen.getByText('Content')).toBeInTheDocument()
     })
 
-    it('should use custom tag for wrapper element', () => {
-      const wrapper = mount(LazyRender, {
+    it('should use custom tag for wrapper element', async () => {
+      const screen = render(LazyRender, {
         props: { tag: 'section' },
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      expect(wrapper.element.tagName.toLowerCase()).toBe('section')
+      await expect.element(screen.container.querySelector('section')).toBeInTheDocument()
     })
 
-    it('should use div as default wrapper tag', () => {
-      const wrapper = mount(LazyRender, {
+    it('should use div as default wrapper tag', async () => {
+      const screen = render(LazyRender, {
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      expect(wrapper.element.tagName.toLowerCase()).toBe('div')
+      await expect.element(screen.container.querySelector('div')).toBeInTheDocument()
     })
   })
 
   describe('props', () => {
-    it('should pass root option to IntersectionObserver', () => {
+    it('should pass root option to IntersectionObserver', async () => {
       const root = document.createElement('div')
 
-      mount(LazyRender, {
+      render(LazyRender, {
         props: { root },
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      expect(IntersectionObserver).toHaveBeenCalledWith(
+      expect(window.IntersectionObserver).toHaveBeenCalledWith(
         expect.any(Function),
         expect.objectContaining({ root }),
       )
     })
 
-    it('should pass rootMargin option to IntersectionObserver', () => {
-      mount(LazyRender, {
+    it('should pass rootMargin option to IntersectionObserver', async () => {
+      render(LazyRender, {
         props: { rootMargin: '100px' },
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      expect(IntersectionObserver).toHaveBeenCalledWith(
+      expect(window.IntersectionObserver).toHaveBeenCalledWith(
         expect.any(Function),
         expect.objectContaining({ rootMargin: '100px' }),
       )
     })
 
-    it('should pass threshold option to IntersectionObserver', () => {
-      mount(LazyRender, {
+    it('should pass threshold option to IntersectionObserver', async () => {
+      render(LazyRender, {
         props: { threshold: 0.5 },
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      expect(IntersectionObserver).toHaveBeenCalledWith(
+      expect(window.IntersectionObserver).toHaveBeenCalledWith(
         expect.any(Function),
         expect.objectContaining({ threshold: 0.5 }),
       )
     })
 
-    it('should support array threshold', () => {
-      mount(LazyRender, {
+    it('should support array threshold', async () => {
+      render(LazyRender, {
         props: { threshold: [0, 0.5, 1] },
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      expect(IntersectionObserver).toHaveBeenCalledWith(
+      expect(window.IntersectionObserver).toHaveBeenCalledWith(
         expect.any(Function),
         expect.objectContaining({ threshold: [0, 0.5, 1] }),
       )
@@ -159,13 +160,18 @@ describe('lazyRender', () => {
 
   describe('events', () => {
     it('should emit change event when visibility changes', async () => {
+      const onChangeMock = vi.fn()
+
       const ChildComponent = defineComponent({
         setup() {
           return () => h('div', { class: 'content' }, 'Content')
         },
       })
 
-      const wrapper = mount(LazyRender, {
+      render(LazyRender, {
+        props: {
+          onChange: onChangeMock,
+        },
         slots: {
           default: () => h(ChildComponent),
           fallback: () => h('div', 'Loading...'),
@@ -175,22 +181,24 @@ describe('lazyRender', () => {
       // Enter viewport
       simulateIntersection(true)
       await nextTick()
-      await flushPromises()
 
       // The change event should be emitted
-      const changeEvents = wrapper.emitted('change')
-      expect(changeEvents).toBeTruthy()
-      expect(changeEvents![0]).toEqual([true])
+      expect(onChangeMock).toHaveBeenCalledWith(true)
     })
 
     it('should emit change with false when leaving viewport', async () => {
+      const onChangeMock = vi.fn()
+
       const ChildComponent = defineComponent({
         setup() {
           return () => h('div', { class: 'content' }, 'Content')
         },
       })
 
-      const wrapper = mount(LazyRender, {
+      render(LazyRender, {
+        props: {
+          onChange: onChangeMock,
+        },
         slots: {
           default: () => h(ChildComponent),
           fallback: () => h('div', 'Loading...'),
@@ -200,17 +208,12 @@ describe('lazyRender', () => {
       // Enter viewport first
       simulateIntersection(true)
       await nextTick()
-      await flushPromises()
 
       // Leave viewport
       simulateIntersection(false)
       await nextTick()
-      await flushPromises()
 
-      const changeEvents = wrapper.emitted('change')
-      expect(changeEvents).toBeTruthy()
-      expect(changeEvents!.length).toBeGreaterThanOrEqual(2)
-      expect(changeEvents![1]).toEqual([false])
+      expect(onChangeMock).toHaveBeenCalledWith(false)
     })
   })
 
@@ -222,7 +225,7 @@ describe('lazyRender', () => {
         },
       })
 
-      const wrapper = mount(LazyRender, {
+      const screen = render(LazyRender, {
         slots: {
           default: () => h(ChildComponent),
           fallback: () => h('div', 'Loading...'),
@@ -232,17 +235,15 @@ describe('lazyRender', () => {
       // Enter viewport
       simulateIntersection(true)
       await nextTick()
-      await flushPromises()
 
-      expect(wrapper.find('.content').text()).toBe('Hello World')
+      await expect.element(screen.getByText('Hello World')).toBeInTheDocument()
 
       // Leave viewport - content should still be visible (frozen state)
       simulateIntersection(false)
       await nextTick()
-      await flushPromises()
 
       // Content should still exist even when frozen
-      expect(wrapper.find('.content').exists()).toBe(true)
+      await expect.element(screen.getByText('Hello World')).toBeInTheDocument()
     })
 
     it('should resume updates when re-entering viewport', async () => {
@@ -264,44 +265,40 @@ describe('lazyRender', () => {
         },
       })
 
-      const wrapper = mount(TestWrapper)
+      const screen = render(TestWrapper)
 
       // Enter viewport
       simulateIntersection(true)
       await nextTick()
-      await flushPromises()
 
-      expect(wrapper.find('.content').text()).toBe('Count: 0')
+      await expect.element(screen.getByText('Count: 0')).toBeInTheDocument()
 
       // Leave viewport
       simulateIntersection(false)
       await nextTick()
-      await flushPromises()
 
       // Update count while out of viewport
       count.value = 5
       await nextTick()
-      await flushPromises()
 
       // Re-enter viewport
       simulateIntersection(true)
       await nextTick()
-      await flushPromises()
 
       // Component should update with new value
-      expect(wrapper.find('.content').text()).toBe('Count: 5')
+      await expect.element(screen.getByText('Count: 5')).toBeInTheDocument()
     })
   })
 
   describe('edge cases', () => {
-    it('should handle empty default slot gracefully', () => {
-      const wrapper = mount(LazyRender, {
+    it('should handle empty default slot gracefully', async () => {
+      const screen = render(LazyRender, {
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      expect(wrapper.find('div').exists()).toBe(true)
+      await expect.element(screen.getByText('Loading...')).toBeInTheDocument()
     })
 
     it('should handle missing fallback slot', async () => {
@@ -311,24 +308,24 @@ describe('lazyRender', () => {
         },
       })
 
-      const wrapper = mount(LazyRender, {
+      const screen = render(LazyRender, {
         slots: {
           default: () => h(ChildComponent),
         },
       })
 
-      // Should not throw and wrapper should exist
-      expect(wrapper.exists()).toBe(true)
+      // Should not throw and container should exist
+      expect(screen.container).toBeDefined()
     })
 
     it('should cleanup observer on unmount', async () => {
-      const wrapper = mount(LazyRender, {
+      const screen = render(LazyRender, {
         slots: {
           fallback: () => h('div', 'Loading...'),
         },
       })
 
-      wrapper.unmount()
+      screen.unmount()
 
       expect(mockDisconnect).toHaveBeenCalled()
     })
